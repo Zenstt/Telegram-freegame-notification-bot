@@ -9,3 +9,6 @@ Right now is [@GNotificationsBot](https://t.me/GnotificationsBot)
 - ~~Epic games~~
 - Steam
 - ...
+
+## Ideas
+- Discord bot?
