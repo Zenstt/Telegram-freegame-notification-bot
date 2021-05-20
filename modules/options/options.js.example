@@ -1,0 +1,18 @@
+"use strict";
+const token = 'telegram_token';
+const mongo_connection = {
+    uri: 'mongo_url',
+    options: {
+        // autoReconnect: true,
+        poolSize: 25,
+        connectTimeoutMS: 60000,
+        socketTimeoutMS: 600000,
+        useUnifiedTopology: true
+        // useNewUrlParser: true
+    },
+    db: 'mongo_db'
+};
+module.exports = {
+    token,
+    mongo_connection
+};
