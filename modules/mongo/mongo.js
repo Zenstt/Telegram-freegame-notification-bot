@@ -2,14 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Stats = exports.CreateIndex = exports.Aggregate_cursor = exports.Aggregate = exports.Count = exports.UpdateMany = exports.UpdateOne = exports.DeleteMany = exports.DeleteOne = exports.InsertMany = exports.InsertOne = exports.CollectionExist = exports.FindCursor = exports.Distinct = exports.Find = exports.Collection = exports.Close = exports.Connect = void 0;
 const mongodb_1 = require("mongodb");
-const options_1 = require("../options/options");
+const options_js_1 = require("../options/options.js");
 let DB;
 let clientDB;
 /**
  * Connects to the database, must be called to do any db operation
  * @param {mongo_connection} conf - Configuration
  */
-async function Connect(conf = options_1.mongo_connection) {
+async function Connect(conf = options_js_1.mongo_connection) {
     if (DB)
         return;
     conf = conf;
@@ -19,7 +19,7 @@ async function Connect(conf = options_1.mongo_connection) {
                 return reject(err);
             clientDB = client;
             DB = client.db(conf.db);
-            return resolve();
+            return resolve(null);
         }));
     });
 }

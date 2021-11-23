@@ -11,9 +11,9 @@
   "license": "ISC",
   "dependencies": {
     "@types/mongodb": "^3.5.26",
-    "cron": "^1.8.2",
     "moment": "^2.24.0",
     "mongodb": "^3.6.0",
+    "node-cron": "^3.0.0",
     "node-telegram-bot-api": "^0.40.0"
   }
 }

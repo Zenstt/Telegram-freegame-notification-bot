@@ -1,6 +1,6 @@
 "use strict";
 const request = require('request');
-const { Find, UpdateOne } = require('./modules/mongo/mongo');
+const { Find, UpdateOne, UpdateMany } = require('./modules/mongo/mongo');
 const moment = require('moment');
 
 function getUser(id, project = {}) {
@@ -48,27 +48,72 @@ function updateUser(id, type, value) {
     return UpdateOne('users', { id: id }, { $set: { ["subscribed." + type]: value } });
 }
 
+async function checkCurrentTitles(new_titles) {
+
+    // Variable to return the new titles
+    let filtered_titles = [];
+
+    // Get current active games 
+    let active_games = await Find("games", { active: true }, {});
+    console.log('Active games:', active_games.length);
+
+    // Iterate list of available games
+    for (let n of new_titles) {
+        // Find if the title is on the active ones
+        let found = (active_games || []).find(a => a.title == n.title);
+        if (!found) {
+            // If is not in the actives, is a new game, add to the list to send to the user
+
+            // Check if that games was already before (Just for flexing that I can)
+            let rerun = await Find("games", { active: false, title: n.title }, {}, {}, true);
+            if (rerun) { n.rerun = true; }
+
+            // Add to the list
+            filtered_titles.push(n);
+        }
+        // Set the game as active
+        n.active = true;
+
+        // Update/Create the game in DB
+        await UpdateOne('games', { title: n.title }, { $set: n }, { upsert: true });
+    }
+
+    // Update every other active that aren't the ones checked with active:false
+    let titles = new_titles.map(a => a.title);
+    let query = { active: true, title: { $nin: titles } };
+    await UpdateMany('games', query, { $set: { active: false } });
+
+    // Returns new actives games
+    return filtered_titles;
+}
+
 async function sendToUsers(bot, type, message = null, extra_data = null) {
+
     if (!type) {
+        // Wa-?
         console.log("No hay type?")
         return;
     }
     console.log("Got type", type);
 
+    // Get users with that subscription
     let users = await Find('users', { ["subscribed." + type]: true }, { id: 1, username: 1, first_name: 1 });
+
+    // Iterate the users
     for (let user of users) {
         console.log("Sending message to user", user.username || user.first_name);
         let text = get_message[type](user, message, extra_data);
-        // if (user.username == "HaruseHaru") {
-        //     console.log("Sending really")
-        bot.sendMessage(user.id, text).catch((error) => {
-            console.log("Error sending message to", user);
-            if (error.response.statusCode === 403) {
-                console.log("Bloqued... Disabling that message to user", user);
-                UpdateOne('users', { id: user.id }, { $set: { subscribed: {} } });
-            }
-        });
-        // }
+        console.log("🚀 ~ file: functions.js ~ line 64 ~ sendToUsers ~ user", user);
+        if (user.username == "HaruseHaru") {
+            console.log("Sending message with telegram bot");
+            bot.sendMessage(user.id, text).catch((error) => {
+                console.log("Error sending message to", user);
+                if (error.response.statusCode === 403) {
+                    console.log("We been blocked!... Disabling that message to user", user);
+                    UpdateOne('users', { id: user.id }, { $set: { subscribed: {} } });
+                }
+            });
+        }
     }
 }
 
@@ -78,7 +123,7 @@ const get_message = {
         if (data && data.current_titles && data.current_titles.length) {
             single_games = "Available games:";
             for (let t of data.current_titles) {
-                single_games += `\n· ${t.title}\n${t.url}`;
+                single_games += `\n·${t.rerun ? '[Repeated]' : ''} ${t.title}\n${t.url}`;
             }
         }
         return `
@@ -254,7 +299,6 @@ function searchFreeEpicGamesGames() {
                                 endDate: new Date(p2.endDate),
                                 url: 'https://www.epicgames.com/store/es-ES/product/' + e.productSlug
                             };
-                            console.log(obj);
                             if (s === searching[0]) {
                                 current_titles.push(obj);
                             } else if (s === searching[1]) {
@@ -287,5 +331,6 @@ module.exports = {
     waitAMoment,
     checkUser,
     updateUser,
-    sendToUsers
+    sendToUsers,
+    checkCurrentTitles,
 };

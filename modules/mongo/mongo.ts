@@ -1,6 +1,6 @@
 "use strict";
 import { MongoClient, Db, CollectionInsertOneOptions, CollectionInsertManyOptions, CommonOptions, FilterQuery, UpdateQuery, UpdateOneOptions, CollectionAggregationOptions, IndexOptions, UpdateManyOptions } from 'mongodb';
-import { mongo_connection } from '../options/options';
+import { mongo_connection } from '../options/options.js';
 
 let DB: Db;
 let clientDB: MongoClient;
@@ -17,7 +17,7 @@ export async function Connect(conf: any = mongo_connection) {
             if (err) return reject(err);
             clientDB = client;
             DB = client.db(conf.db);
-            return resolve();
+            return resolve(null);
         }));
     })
 }

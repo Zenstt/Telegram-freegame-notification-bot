@@ -11,12 +11,17 @@ const {
     waitAMoment,
     checkUser,
     updateUser,
-    sendToUsers
+    sendToUsers,
+    checkCurrentTitles
 } = require('./functions');
-const { CronJob } = require('cron');
+const cron = require('node-cron');
 
 // Creamos un bot que usa 'polling'para obtener actualizaciones
 const bot = new TelegramBot(options.token, { polling: true });
+console.show = console.log;
+console.log = (...params) => {
+    console.show(moment().format('YYYY-MM-DD HH:mm:ss'), '|', ...params);
+};
 console.log("Bot Iniciado");
 
 // const user_db_file = __dirname + '/users.db.json';
@@ -60,18 +65,30 @@ Connect().then(() => {
 
     let crontabs = {
         // epic_games: new CronJob('0 07 09 * * 4', async () => {
-        epic_games: new CronJob('0 01 16 * * 4', async () => {
+        epic_games: cron.schedule('0 07 17 * * *', async () => {
+        // epic_games: cron.schedule('0 07 17 * * 4', async () => {
+            // epic_games: cron.schedule('0 29 11 * * *', async () => {
             console.log('Epic games crontab starting!');
             await epicGamesCron();
-            console.log('Next epic games date will be: ', crontabs.epic_games.nextDate().format('YYYY-MM-DD HH:mm'));
-        }, null, true)
+        }, {
+            timezone: "Europe/Madrid"
+        })
     };
-    console.log('Next epic games date will be: ', crontabs.epic_games.nextDate().format('YYYY-MM-DD HH:mm'));
+    epicGamesCron();
+}).catch((err) => {
+    console.log('err', err);
 });
 
 async function epicGamesCron() {
+    // Get the current free games
     let extra_data = await searchFreeEpicGamesGames().catch(console.log);
-    sendToUsers(bot, 'epic_games', null, extra_data || null);
+    // Check and Update the new titles available
+    let new_titles = await checkCurrentTitles(extra_data.current_titles);
+    console.log("New titles:", new_titles.length);
+    // If there's a new title, send to user
+    if (new_titles.length) {
+        // sendToUsers(bot, 'epic_games', null, new_titles || null);
+    }
 }
 
 
