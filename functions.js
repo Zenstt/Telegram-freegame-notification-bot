@@ -56,6 +56,7 @@ async function checkCurrentTitles(new_titles) {
     // Get current active games 
     let active_games = await Find("games", { active: true }, {});
     console.log('Active games:', active_games.length);
+    console.log(active_games.map(a => a.title));
 
     // Iterate list of available games
     for (let n of new_titles) {
@@ -91,7 +92,7 @@ async function sendToUsers(bot, type, message = null, extra_data = null) {
 
     if (!type) {
         // Wa-?
-        console.log("No hay type?")
+        console.log("No hay type?");
         return;
     }
     console.log("Got type", type);
@@ -103,26 +104,26 @@ async function sendToUsers(bot, type, message = null, extra_data = null) {
     for (let user of users) {
         console.log("Sending message to user", user.username || user.first_name);
         let text = get_message[type](user, message, extra_data);
-        console.log("🚀 ~ file: functions.js ~ line 64 ~ sendToUsers ~ user", user);
-        if (user.username == "HaruseHaru") {
-            console.log("Sending message with telegram bot");
-            bot.sendMessage(user.id, text).catch((error) => {
-                console.log("Error sending message to", user);
-                if (error.response.statusCode === 403) {
-                    console.log("We been blocked!... Disabling that message to user", user);
-                    UpdateOne('users', { id: user.id }, { $set: { subscribed: {} } });
-                }
-            });
-        }
+        // if (user.username == "Zenstt") {
+        console.log("##################");
+        bot.sendMessage(user.id, text).catch((error) => {
+            console.log("Error sending message to", user);
+            if (error.response.statusCode === 403) {
+                console.log("We been blocked!... Disabling that message to user", user);
+                UpdateOne('users', { id: user.id }, { $set: { subscribed: {} } });
+            }
+        });
+        // }
     }
 }
 
 const get_message = {
     epic_games: function (user, message, data) {
+        console.log('data: ', data);
         let single_games = '';
-        if (data && data.current_titles && data.current_titles.length) {
+        if (data && data.length) {
             single_games = "Available games:";
-            for (let t of data.current_titles) {
+            for (let t of data) {
                 single_games += `\n·${t.rerun ? '[Repeated]' : ''} ${t.title}\n${t.url}`;
             }
         }
@@ -130,9 +131,11 @@ const get_message = {
 [REMINDER] 
 Hello ${user.username || user.first_name}, new free epic games are available on the epic store.
 
+${single_games}
+
+You can check them out in the following link:
 https://www.epicgames.com/store/es-ES/free-games
 
-${single_games}
                 `;
 
 

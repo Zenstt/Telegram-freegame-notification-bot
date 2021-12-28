@@ -65,8 +65,8 @@ Connect().then(() => {
 
     let crontabs = {
         // epic_games: new CronJob('0 07 09 * * 4', async () => {
-        epic_games: cron.schedule('0 07 17 * * *', async () => {
-        // epic_games: cron.schedule('0 07 17 * * 4', async () => {
+        epic_games: cron.schedule('0 05 * * * *', async () => {
+            // epic_games: cron.schedule('0 07 17 * * 4', async () => {
             // epic_games: cron.schedule('0 29 11 * * *', async () => {
             console.log('Epic games crontab starting!');
             await epicGamesCron();
@@ -85,9 +85,10 @@ async function epicGamesCron() {
     // Check and Update the new titles available
     let new_titles = await checkCurrentTitles(extra_data.current_titles);
     console.log("New titles:", new_titles.length);
+    console.log(new_titles.map(t => t.title));
     // If there's a new title, send to user
     if (new_titles.length) {
-        // sendToUsers(bot, 'epic_games', null, new_titles || null);
+        sendToUsers(bot, 'epic_games', null, new_titles || null);
     }
 }
 
