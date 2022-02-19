@@ -1,23 +1,17 @@
 "use strict";
 process.env.NTBA_FIX_319 = 1;
 
-const TelegramBot = require('node-telegram-bot-api');
-const moment = require('moment');
-const { Connect, UpdateOne } = require('./modules/mongo/mongo');
-const options = require('./modules/options/options');
-const fs = require('fs');
-const {
-    searchFreeEpicGamesGames,
-    waitAMoment,
-    checkUser,
-    updateUser,
-    sendToUsers,
-    checkCurrentTitles
-} = require('./functions');
-const cron = require('node-cron');
+import TelegramBot from 'node-telegram-bot-api';
+import moment from 'moment';
+import nodecron from 'node-cron';
+const { schedule } = nodecron;
+import { token } from './options/options.js';
+import { Connect } from './services/mongo/mongo.js';
+import { checkUser, updateUser } from './services/users.js';
+import { crontGames } from './jobs/crontab_functions.js';
 
 // Creamos un bot que usa 'polling'para obtener actualizaciones
-const bot = new TelegramBot(options.token, { polling: true });
+const bot = new TelegramBot(token, { polling: true });
 console.show = console.log;
 console.log = (...params) => {
     console.show(moment().format('YYYY-MM-DD HH:mm:ss'), '|', ...params);
@@ -65,32 +59,30 @@ Connect().then(() => {
 
     let crontabs = {
         // epic_games: new CronJob('0 07 09 * * 4', async () => {
-        epic_games: cron.schedule('0 05 * * * *', async () => {
+        epic_games: schedule('0 05 * * * *', async () => {
             // epic_games: cron.schedule('0 07 17 * * 4', async () => {
             // epic_games: cron.schedule('0 29 11 * * *', async () => {
             console.log('Epic games crontab starting!');
-            await epicGamesCron();
+            await crontGames(bot, 'epic_games');
+        }, {
+            timezone: "Europe/Madrid"
+        }),
+        gog_games: schedule('0 04 * * * *', async () => {
+            // epic_games: cron.schedule('0 07 17 * * 4', async () => {
+            // epic_games: cron.schedule('0 29 11 * * *', async () => {
+            console.log('gog games starting!');
+            await crontGames(bot, 'gog_games');
         }, {
             timezone: "Europe/Madrid"
         })
     };
-    epicGamesCron();
+    crontGames(bot, 'epic_games');
+    crontGames(bot, 'gog_games');
 }).catch((err) => {
     console.log('err', err);
 });
 
-async function epicGamesCron() {
-    // Get the current free games
-    let extra_data = await searchFreeEpicGamesGames().catch(console.log);
-    // Check and Update the new titles available
-    let new_titles = await checkCurrentTitles(extra_data.current_titles);
-    console.log("New titles:", new_titles.length);
-    console.log(new_titles.map(t => t.title));
-    // If there's a new title, send to user
-    if (new_titles.length) {
-        sendToUsers(bot, 'epic_games', null, new_titles || null);
-    }
-}
+
 
 
 function getMainMessage(user) {

@@ -1,5 +1,11 @@
 # Ignore modules
 node_modules/
-modules/options/options.js
+src/options/options.js
 # Ignore DB
 # users.db.json
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+build

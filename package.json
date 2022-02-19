@@ -2,15 +2,18 @@
   "name": "notification_bot",
   "version": "1.0.0",
   "description": "",
-  "main": "bot.js",
+  "main": "src/app.ts",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node bot.js"
+    "build": "tsc",
+    "start": "node src/app.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@types/mongodb": "^3.5.26",
+    "got": "^12.0.0",
     "moment": "^2.24.0",
     "mongodb": "^3.6.0",
     "node-cron": "^3.0.0",

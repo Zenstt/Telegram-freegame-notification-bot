@@ -1,180 +1,7 @@
 "use strict";
-const request = require('request');
-const { Find, UpdateOne, UpdateMany } = require('./modules/mongo/mongo');
-const moment = require('moment');
+import { HTTPpetition, HTTPpetitionOLD } from './request_functions.js';
 
-function getUser(id, project = {}) {
-    return Find('users', { id: id }, project, {}, true);
-}
-
-async function checkUser(msg) {
-    // let test = JSON.parse(fs.readFileSync('../users_db.json'));
-    // console.log('test: ', test);
-    let user = await getUser(msg.from.id);
-    if (!user) {
-        console.log("New user!");
-        await UpdateOne('users', { id: msg.from.id }, {
-            $set: {
-                id: msg.from.id,
-                username: msg.from.username,
-                first_name: msg.from.first_name,
-                last_name: msg.from.last_name,
-                joinedDate: moment().toDate(),
-                lastDate: moment().toDate(),
-                language_code: msg.from.language_code || null,
-                admin: false,
-                subscribed: {},
-            }
-        }, { upsert: true });
-        return getUser(msg.from.id);
-    } else {
-        user.lastDate = moment().toDate();
-        user.first_name = msg.from.first_name;
-        user.last_name = msg.from.last_name;
-        user.username = msg.from.username;
-        UpdateOne('users', { id: msg.from.id }, {
-            $set: {
-                lastDate: user.lastDate,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                username: user.username
-            }
-        });
-    }
-    return user;
-}
-
-function updateUser(id, type, value) {
-    return UpdateOne('users', { id: id }, { $set: { ["subscribed." + type]: value } });
-}
-
-async function checkCurrentTitles(new_titles) {
-
-    // Variable to return the new titles
-    let filtered_titles = [];
-
-    // Get current active games 
-    let active_games = await Find("games", { active: true }, {});
-    console.log('Active games:', active_games.length);
-    console.log(active_games.map(a => a.title));
-
-    // Iterate list of available games
-    for (let n of new_titles) {
-        // Find if the title is on the active ones
-        let found = (active_games || []).find(a => a.title == n.title);
-        if (!found) {
-            // If is not in the actives, is a new game, add to the list to send to the user
-
-            // Check if that games was already before (Just for flexing that I can)
-            let rerun = await Find("games", { active: false, title: n.title }, {}, {}, true);
-            if (rerun) { n.rerun = true; }
-
-            // Add to the list
-            filtered_titles.push(n);
-        }
-        // Set the game as active
-        n.active = true;
-
-        // Update/Create the game in DB
-        await UpdateOne('games', { title: n.title }, { $set: n }, { upsert: true });
-    }
-
-    // Update every other active that aren't the ones checked with active:false
-    let titles = new_titles.map(a => a.title);
-    let query = { active: true, title: { $nin: titles } };
-    await UpdateMany('games', query, { $set: { active: false } });
-
-    // Returns new actives games
-    return filtered_titles;
-}
-
-async function sendToUsers(bot, type, message = null, extra_data = null) {
-
-    if (!type) {
-        // Wa-?
-        console.log("No hay type?");
-        return;
-    }
-    console.log("Got type", type);
-
-    // Get users with that subscription
-    let users = await Find('users', { ["subscribed." + type]: true }, { id: 1, username: 1, first_name: 1 });
-
-    // Iterate the users
-    for (let user of users) {
-        console.log("Sending message to user", user.username || user.first_name);
-        let text = get_message[type](user, message, extra_data);
-        // if (user.username == "Zenstt") {
-        console.log("##################");
-        bot.sendMessage(user.id, text).catch((error) => {
-            console.log("Error sending message to", user);
-            if (error.response.statusCode === 403) {
-                console.log("We been blocked!... Disabling that message to user", user);
-                UpdateOne('users', { id: user.id }, { $set: { subscribed: {} } });
-            }
-        });
-        // }
-    }
-}
-
-const get_message = {
-    epic_games: function (user, message, data) {
-        console.log('data: ', data);
-        let single_games = '';
-        if (data && data.length) {
-            single_games = "Available games:";
-            for (let t of data) {
-                single_games += `\n·${t.rerun ? '[Repeated]' : ''} ${t.title}\n${t.url}`;
-            }
-        }
-        return `
-[REMINDER] 
-Hello ${user.username || user.first_name}, new free epic games are available on the epic store.
-
-${single_games}
-
-You can check them out in the following link:
-https://www.epicgames.com/store/es-ES/free-games
-
-                `;
-
-
-    }
-};
-
-/**
- * 
- * @param {get|post} type 
- * @param {import('request').Options} options 
- * @returns {Promise<{error,response,body}>}
- */
-function HTTPpetition(type, options) {
-    return new Promise((resolve, reject) => {
-        function result(error, response, body) {
-            if (!error && response.statusCode === 200) {
-                try {
-                    let body_parsed = JSON.parse(body);
-                    body = body_parsed;
-                } catch (_err) {
-                    console.log("Error parsing body", _err);
-                    // :D...
-                }
-                resolve({ error, response, body });
-            } else {
-                reject({ error, response, body });
-            }
-
-        }
-        if (type == "post") {
-            console.log("Doing post");
-            request.post(options, result);
-        } else {
-            request.get(options, result);
-        }
-    });
-}
-
-function searchFreeEpicGamesGames() {
+export function searchFreeEpicGamesGames() {
 
 
     let url = "https://www.epicgames.com/store/backend/graphql-proxy";
@@ -261,7 +88,7 @@ function searchFreeEpicGamesGames() {
 
     return new Promise((resolve, reject) => {
 
-        HTTPpetition('post', {
+        HTTPpetitionOLD('post', {
             url: url,
             body: JSON.stringify(obj),
             headers: {
@@ -274,7 +101,7 @@ function searchFreeEpicGamesGames() {
                 'referer': 'https://www.epicgames.com/store/es-ES/free-games'
                 // "Cookie": "EPIC_SESSION_DIESEL=dPtyZcknUP-Qj-zxPvJ8FQ.Jst-P_sV9eEdhJwCjbHynDnJ3a21qC7WI4dTv_K0q0AVO5__kn_kWKFr2hcfeAwT.1587026982591.86400000.lZvA_r476jM0U1vhXtlD631rWYFv_HDuVDpzz9EsjdI; EPIC_LOCALE_COOKIE=es-ES; _epicSID=52fca825952248f48c5e6326af91bbb0; euCookieAccepted=true"
             }
-        }).then((result) => {
+        }, true).then((result) => {
             let current_titles = [];
             let future_titles = [];
             if (!result.body || !result.body.data || !result.body.data.Catalog || !result.body.data.Catalog.searchStore || !result.body.data.Catalog.searchStore.elements) return resolve({ current_titles, future_titles });
@@ -322,18 +149,35 @@ function searchFreeEpicGamesGames() {
 }
 
 
-async function waitAMoment(time) {
-    time = time || time === 0 ? time : 1000;
-    console.log("Waiting", time, '(' + (time / 1000) + 's)');
-    return new Promise((resolve) => {
-        setTimeout(resolve, time);
+export function searchFreeGogGamesGames() {
+
+    let url = "https://www.gog.com";
+    return new Promise((resolve, reject) => {
+        HTTPpetition('get', { url: url }, true).then((result) => {
+            let body = result.body;
+            const searchText = "giveaway-banner-id";
+            if (body.includes(searchText)) {
+                let searchText2 = "ng-href=\"";
+                let start = body.split(searchText)[0].lastIndexOf(searchText2);
+                let end = body.indexOf("\"", start + searchText2.length);
+                let gameUrl = url + body.substring(start + searchText2.length, end);
+
+                let searchText3 = "giveaway-banner__title\">";
+                let splitted = body.split(searchText3);
+                let title = splitted[1].split("Claim ")[1].split(" as a token")[0];
+                let obj = {
+                    title: title,
+                    images: [],
+                    startDate: new Date(),
+                    endDate: null,
+                    url: gameUrl
+                };
+                return resolve({ current_titles: [obj], future_titles: [], error: null });
+            } else {
+                return resolve({ current_titles: [], future_titles: [], error: null });
+            }
+        }).catch((err) => {
+            return reject(err);
+        });
     });
 }
-module.exports = {
-    searchFreeEpicGamesGames,
-    waitAMoment,
-    checkUser,
-    updateUser,
-    sendToUsers,
-    checkCurrentTitles,
-};
